@@ -13,12 +13,12 @@
       background: black;
       overflow: hidden;
       font-family: 'Segoe UI', Arial, sans-serif;
-      /* 2. PREVENTS BROWSER INTERFERENCE */
-      touch-action: none; 
+      touch-action: none; /* prevents browser interference */
     }
     svg {
-      display: block;   /* removes extra margin/padding */
-    }    
+      display: block; /* ensures it fills the viewport */
+      min-height: 400px; /* prevents tiny invisible SVG */
+    }
     text {
       fill: white;
       user-select: none;
@@ -77,9 +77,10 @@
 
     const dynamicStrokeWidth = 1 / scale;
     const mainLineThickness = 2 / scale;
-    const dynamicFontSize = Math.max(12 / scale, 4); // Keep text readable
+    const dynamicFontSize = Math.max(12 / scale, 4);
     const textPadding = 8 / scale;
 
+    // Main timeline line
     timelineLayer.append("line")
       .attr("x1", startYear * pixelsPerYear)
       .attr("y1", height / 2)
@@ -88,13 +89,14 @@
       .attr("stroke", "white")
       .attr("stroke-width", mainLineThickness);
 
+    // Year ticks and labels
     let yearStep = scale < 0.1 ? 500 : (scale < 0.8 ? 100 : 10);
 
     for (let year = 0; year <= endYear; year += yearStep) {
       const x = year * pixelsPerYear;
       const isMajor = year % 500 === 0;
       const isCentury = year % 100 === 0;
-      
+
       let tickH = (isMajor ? 20 : (isCentury ? 12 : 6)) / scale;
       let opacity = isMajor ? 1 : (isCentury ? 0.8 : 0.4);
 
@@ -120,9 +122,10 @@
       }
     }
 
+    // Projects
     let lastX = -Infinity;
     let currentStackLevel = 0;
-    const minDistance = 180 / scale; 
+    const minDistance = 180 / scale;
     const stackHeight = 30 / scale;
 
     projects.forEach(p => {
@@ -131,7 +134,7 @@
       if (x - lastX < minDistance) currentStackLevel++; else currentStackLevel = 0;
       lastX = x;
 
-      const initialGap = 40 / scale; 
+      const initialGap = 40 / scale;
       const offset = initialGap + (currentStackLevel * stackHeight);
       const textTopY = yBase - offset;
 
@@ -142,23 +145,23 @@
     });
   }
 
-const zoomBehavior = d3.zoom()
-  .filter((event) => {
-    return event.button === 0 || 
-           event.button === 1 || 
-           event.type === 'touchstart' || 
-           event.type === 'wheel';
-  })
-  .scaleExtent([0.05, 20])
-  .on("zoom", (event) => {
-    group.attr("transform", event.transform);
-    updateLabels(event.transform.k);
-  });
+  const zoomBehavior = d3.zoom()
+    .filter((event) => {
+      return event.button === 0 || 
+             event.button === 1 || 
+             event.type === 'touchstart' || 
+             event.type === 'wheel';
+    })
+    .scaleExtent([0.05, 20])
+    .on("zoom", (event) => {
+      group.attr("transform", event.transform);
+      updateLabels(event.transform.k);
+    });
 
-svg.call(zoomBehavior);
+  svg.call(zoomBehavior);
 
-// --- INITIALIZATION FIX ---
-function initializeView() {
+  // --- FIXED INITIALIZATION ---
+  function initializeView() {
     const initialYear = 1950;
     const initialX = -(initialYear * pixelsPerYear) + (window.innerWidth / 2);
     const initialY = 0;
@@ -167,20 +170,22 @@ function initializeView() {
       .translate(initialX, initialY)
       .scale(1);
 
-  // 3. Force the SVG to move to that position and draw
-  svg.call(zoomBehavior.transform, transform);
-  updateLabels(1);
-}
+    // Apply transform before drawing
+    svg.call(zoomBehavior.transform, transform);
 
-// Run the initialization once everything is loaded
-window.addEventListener('load', initializeView);
-// Also handle window resizing
-window.addEventListener('resize', () => {
-  // Optional: re-run initialization or just updateLabels
-  updateLabels(d3.zoomTransform(svg.node()).k);
-});
+    // Draw timeline and projects at initial scale
+    updateLabels(1);
+  }
 
-  // RESET BUTTON LOGIC
+  window.addEventListener('load', initializeView);
+
+  // Update on resize
+  window.addEventListener('resize', () => {
+    const currentTransform = d3.zoomTransform(svg.node());
+    updateLabels(currentTransform.k);
+  });
+
+  // RESET BUTTON
   d3.select("#reset-btn").on("click", () => {
     svg.transition().duration(750).call(
       zoomBehavior.transform,
@@ -190,7 +195,4 @@ window.addEventListener('resize', () => {
 
 </script>
 </body>
-
 </html>
-
-
