@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Architecture Timeline</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -12,16 +13,19 @@
       height: 100%;
       background: black;
       overflow: hidden;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      touch-action: none; /* prevents browser interference */
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      /* Crucial for mobile: stops the browser from handling pan/zoom so D3 can */
+      touch-action: none; 
     }
-    svg {
-      display: block; /* ensures it fills the viewport */
-      min-height: 400px; /* prevents tiny invisible SVG */
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
     }
     text {
       fill: white;
       user-select: none;
+      pointer-events: none;
     }
     line {
       shape-rendering: crispEdges;
@@ -30,27 +34,31 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      padding: 10px 15px;
-      background: rgba(255, 255, 255, 0.2);
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.1);
       color: white;
-      border: 1px solid white;
-      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 8px;
       cursor: pointer;
       z-index: 100;
+      backdrop-filter: blur(5px);
+      font-size: 14px;
+    }
+    #reset-btn:active {
+      background: rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
 <body>
 
 <button id="reset-btn">Reset View</button>
-<svg id="canvas" width="100%" height="100%"></svg>
+<svg id="canvas"></svg>
 
 <script>
-  const width = window.innerWidth;
-  const height = window.innerHeight;
   const svg = d3.select("#canvas");
   const group = svg.append("g");
 
+  // --- Configuration ---
   const startYear = 0;
   const endYear = 2026;
   const pixelsPerYear = 10; 
@@ -71,16 +79,20 @@
   const timelineLayer = group.append("g");
   const projectGroup = group.append("g");
 
+  // --- The Core Rendering Function ---
   function updateLabels(scale) {
     timelineLayer.selectAll("*").remove();
     projectGroup.selectAll("*").remove();
 
+    const svgNode = svg.node();
+    const height = svgNode.getBoundingClientRect().height;
+
     const dynamicStrokeWidth = 1 / scale;
     const mainLineThickness = 2 / scale;
-    const dynamicFontSize = Math.max(12 / scale, 4);
+    const dynamicFontSize = 14 / scale;
     const textPadding = 8 / scale;
 
-    // Main timeline line
+    // 1. MAIN LINE
     timelineLayer.append("line")
       .attr("x1", startYear * pixelsPerYear)
       .attr("y1", height / 2)
@@ -89,16 +101,16 @@
       .attr("stroke", "white")
       .attr("stroke-width", mainLineThickness);
 
-    // Year ticks and labels
+    // 2. DYNAMIC TICKS (500yr, 100yr, 10yr)
     let yearStep = scale < 0.1 ? 500 : (scale < 0.8 ? 100 : 10);
 
     for (let year = 0; year <= endYear; year += yearStep) {
       const x = year * pixelsPerYear;
       const isMajor = year % 500 === 0;
       const isCentury = year % 100 === 0;
-
+      
       let tickH = (isMajor ? 20 : (isCentury ? 12 : 6)) / scale;
-      let opacity = isMajor ? 1 : (isCentury ? 0.8 : 0.4);
+      let opacity = isMajor ? 1 : (isCentury ? 0.7 : 0.3);
 
       timelineLayer.append("line")
         .attr("x1", x)
@@ -109,7 +121,9 @@
         .attr("stroke-width", isMajor ? mainLineThickness : dynamicStrokeWidth)
         .attr("opacity", opacity);
 
-      let showText = (yearStep === 500 && isMajor) || (yearStep === 100 && isCentury) || (yearStep === 10 && (isCentury || year % 50 === 0));
+      let showText = (yearStep === 500 && isMajor) || 
+                     (yearStep === 100 && isCentury) || 
+                     (yearStep === 10 && (isCentury || year % 50 === 0));
 
       if (showText) {
         timelineLayer.append("text")
@@ -122,10 +136,10 @@
       }
     }
 
-    // Projects
+    // 3. PROJECTS WITH STACKING
     let lastX = -Infinity;
     let currentStackLevel = 0;
-    const minDistance = 180 / scale;
+    const minDistance = 180 / scale; 
     const stackHeight = 30 / scale;
 
     projects.forEach(p => {
@@ -134,7 +148,7 @@
       if (x - lastX < minDistance) currentStackLevel++; else currentStackLevel = 0;
       lastX = x;
 
-      const initialGap = 40 / scale;
+      const initialGap = 40 / scale; 
       const offset = initialGap + (currentStackLevel * stackHeight);
       const textTopY = yBase - offset;
 
@@ -145,12 +159,10 @@
     });
   }
 
+  // --- Zoom/Pan Behavior ---
   const zoomBehavior = d3.zoom()
     .filter((event) => {
-      return event.button === 0 || 
-             event.button === 1 || 
-             event.type === 'touchstart' || 
-             event.type === 'wheel';
+      return event.button === 0 || event.button === 1 || event.type === 'touchstart' || event.type === 'wheel';
     })
     .scaleExtent([0.05, 20])
     .on("zoom", (event) => {
@@ -160,37 +172,81 @@
 
   svg.call(zoomBehavior);
 
-  // --- FIXED INITIALIZATION ---
+  // --- Initialization Fix for GitHub/Mobile ---
   function initializeView() {
-    const initialYear = 1950;
-    const initialX = -(initialYear * pixelsPerYear) + (window.innerWidth / 2);
-    const initialY = 0;
-
+    const bb = svg.node().getBoundingClientRect();
+    const focusYear = 1950;
+    
+    // Center the year 1950 horizontally
+    const centerX = (bb.width / 2) - (focusYear * pixelsPerYear);
+    
     const transform = d3.zoomIdentity
-      .translate(initialX, initialY)
+      .translate(centerX, 0)
       .scale(1);
 
-    // Apply transform before drawing
     svg.call(zoomBehavior.transform, transform);
-
-    // Draw timeline and projects at initial scale
     updateLabels(1);
   }
 
-  window.addEventListener('load', initializeView);
-
-  // Update on resize
-  window.addEventListener('resize', () => {
-    const currentTransform = d3.zoomTransform(svg.node());
-    updateLabels(currentTransform.k);
+  window.addEventListener('load', () => {
+    setTimeout(initializeView, 100);
   });
 
-  // RESET BUTTON
+  window.addEventListener('resize', () => {
+    updateLabels(d3.zoomTransform(svg.node()).k);
+  });
+
   d3.select("#reset-btn").on("click", () => {
+    const bb = svg.node().getBoundingClientRect();
+    const centerX = (bb.width / 2) - (1950 * pixelsPerYear);
     svg.transition().duration(750).call(
       zoomBehavior.transform,
-      d3.zoomIdentity.translate(0, 0).scale(1)
+      d3.zoomIdentity.translate(centerX, 0).scale(1)
     );
+  });
+
+  // --- Image Support ---
+  function addImageToBoard(url) {
+    const img = new Image();
+    img.onload = function () {
+      const currentScale = d3.zoomTransform(svg.node()).k;
+      const transform = d3.zoomTransform(svg.node());
+      
+      // Place image in the middle of current view
+      const xPos = (window.innerWidth / 2 - transform.x) / transform.k;
+      const yPos = (window.innerHeight / 2 - transform.y) / transform.k;
+
+      group.append("image")
+        .attr("href", url)
+        .attr("x", xPos - (img.width / 4) / currentScale)
+        .attr("y", yPos - (img.height / 4) / currentScale)
+        .attr("width", (img.width / 2) / currentScale)
+        .attr("height", (img.height / 2) / currentScale)
+        .call(d3.drag()
+          .on("start", function(e) { 
+            d3.select(this).raise(); 
+            const el = d3.select(this);
+            el.attr("data-dx", e.x - +el.attr("x")).attr("data-dy", e.y - +el.attr("y"));
+          })
+          .on("drag", function(e) {
+            const el = d3.select(this);
+            el.attr("x", e.x - +el.attr("data-dx")).attr("y", e.y - +el.attr("data-dy"));
+          })
+        );
+    };
+    img.src = url;
+  }
+
+  document.addEventListener("paste", (e) => {
+    if (!e.clipboardData) return;
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        const url = URL.createObjectURL(file);
+        addImageToBoard(url);
+      }
+    }
   });
 
 </script>
