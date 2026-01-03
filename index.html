@@ -139,12 +139,8 @@
     });
   }
 
-const zoomBehavior = d3.zoom()
+onst zoomBehavior = d3.zoom()
   .filter((event) => {
-    // 0: Left click
-    // 1: Middle click (Scroll wheel)
-    // touchstart: Mobile touch
-    // wheel: Mouse scroll
     return event.button === 0 || 
            event.button === 1 || 
            event.type === 'touchstart' || 
@@ -158,6 +154,31 @@ const zoomBehavior = d3.zoom()
 
 svg.call(zoomBehavior);
 
+// --- INITIALIZATION FIX ---
+function initializeView() {
+  // 1. Calculate how to center the year 1950
+  const initialYear = 1950;
+  const initialX = -(initialYear * pixelsPerYear) + (window.innerWidth / 2);
+  const initialY = 0; // The line is already centered vertically by (height / 2)
+
+  // 2. Apply this "starting camera position" to D3
+  const transform = d3.zoomIdentity
+    .translate(initialX, initialY)
+    .scale(1);
+
+  // 3. Force the SVG to move to that position and draw
+  svg.call(zoomBehavior.transform, transform);
+  updateLabels(1);
+}
+
+// Run the initialization once everything is loaded
+window.addEventListener('load', initializeView);
+// Also handle window resizing
+window.addEventListener('resize', () => {
+  // Optional: re-run initialization or just updateLabels
+  updateLabels(d3.zoomTransform(svg.node()).k);
+});
+
   // RESET BUTTON LOGIC
   d3.select("#reset-btn").on("click", () => {
     svg.transition().duration(750).call(
@@ -168,4 +189,5 @@ svg.call(zoomBehavior);
 
 </script>
 </body>
+
 </html>
