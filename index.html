@@ -14,13 +14,15 @@
       background: black;
       overflow: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      /* Crucial for mobile: stops the browser from handling pan/zoom so D3 can */
       touch-action: none; 
     }
     #canvas {
       display: block;
       width: 100vw;
       height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
     text {
       fill: white;
@@ -44,9 +46,6 @@
       backdrop-filter: blur(5px);
       font-size: 14px;
     }
-    #reset-btn:active {
-      background: rgba(255, 255, 255, 0.3);
-    }
   </style>
 </head>
 <body>
@@ -58,7 +57,6 @@
   const svg = d3.select("#canvas");
   const group = svg.append("g");
 
-  // --- Configuration ---
   const startYear = 0;
   const endYear = 2026;
   const pixelsPerYear = 10; 
@@ -79,167 +77,123 @@
   const timelineLayer = group.append("g");
   const projectGroup = group.append("g");
 
-  // --- The Core Rendering Function ---
-  function updateLabels(scale) {
+function updateLabels(scale) {
     timelineLayer.selectAll("*").remove();
     projectGroup.selectAll("*").remove();
 
-    const svgNode = svg.node();
-    const height = svgNode.getBoundingClientRect().height;
+    const viewWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+    const centerY = viewHeight / 2;
 
+    // 1. IMPROVED LEGIBILITY SCALING
+    // baseFontSize: how big the text "should" be at this scale
+    const baseFontSize = 14 / scale;
+
+    // CLAMPING: 
+    // Max: 24/scale (prevents it from being huge when zoomed in)
+    // Min: 12/scale (ensures it's always readable when zoomed out)
+    const dynamicFontSize = Math.min(Math.max(baseFontSize, 12 / scale), 24 / scale);
+    
     const dynamicStrokeWidth = 1 / scale;
     const mainLineThickness = 2 / scale;
-    const dynamicFontSize = 14 / scale;
-    const textPadding = 8 / scale;
+    const textPadding = 10 / scale;
 
-    // 1. MAIN LINE
+    // 2. MAIN LINE
     timelineLayer.append("line")
       .attr("x1", startYear * pixelsPerYear)
-      .attr("y1", height / 2)
+      .attr("y1", centerY)
       .attr("x2", endYear * pixelsPerYear)
-      .attr("y2", height / 2)
+      .attr("y2", centerY)
       .attr("stroke", "white")
       .attr("stroke-width", mainLineThickness);
 
-    // 2. DYNAMIC TICKS (500yr, 100yr, 10yr)
+    // 3. TICKS
     let yearStep = scale < 0.1 ? 500 : (scale < 0.8 ? 100 : 10);
-
     for (let year = 0; year <= endYear; year += yearStep) {
       const x = year * pixelsPerYear;
       const isMajor = year % 500 === 0;
       const isCentury = year % 100 === 0;
-      
       let tickH = (isMajor ? 20 : (isCentury ? 12 : 6)) / scale;
       let opacity = isMajor ? 1 : (isCentury ? 0.7 : 0.3);
 
       timelineLayer.append("line")
-        .attr("x1", x)
-        .attr("y1", height / 2 - tickH)
-        .attr("x2", x)
-        .attr("y2", height / 2 + tickH)
-        .attr("stroke", "white")
-        .attr("stroke-width", isMajor ? mainLineThickness : dynamicStrokeWidth)
-        .attr("opacity", opacity);
+        .attr("x1", x).attr("y1", centerY - tickH).attr("x2", x).attr("y2", centerY + tickH)
+        .attr("stroke", "white").attr("stroke-width", isMajor ? mainLineThickness : dynamicStrokeWidth).attr("opacity", opacity);
 
-      let showText = (yearStep === 500 && isMajor) || 
-                     (yearStep === 100 && isCentury) || 
-                     (yearStep === 10 && (isCentury || year % 50 === 0));
-
+      let showText = (yearStep === 500 && isMajor) || (yearStep === 100 && isCentury) || (yearStep === 10 && (isCentury || year % 50 === 0));
       if (showText) {
         timelineLayer.append("text")
-          .attr("x", x + (4 / scale))
-          .attr("y", height / 2 + tickH + (10 / scale))
+          .attr("x", x + (4 / scale)).attr("y", centerY + tickH + (10 / scale))
           .attr("font-size", `${dynamicFontSize * (isMajor ? 1.2 : 0.9)}px`)
-          .attr("font-weight", isMajor ? "bold" : "normal")
-          .attr("opacity", opacity)
-          .text(year);
+          .attr("font-weight", isMajor ? "bold" : "normal").attr("opacity", opacity).text(year);
       }
     }
 
-    // 3. PROJECTS WITH STACKING
+    // 4. PROJECTS WITH PROTECTIVE BUFFER
     let lastX = -Infinity;
     let currentStackLevel = 0;
     const minDistance = 180 / scale; 
-    const stackHeight = 30 / scale;
+    const stackHeight = 35 / scale;
 
     projects.forEach(p => {
       const x = p.year * pixelsPerYear;
-      const yBase = height / 2;
       if (x - lastX < minDistance) currentStackLevel++; else currentStackLevel = 0;
       lastX = x;
 
-      const initialGap = 40 / scale; 
+      // This ensures the line always stays long enough to keep text away from the main axis
+      const initialGap = 45 / scale; 
       const offset = initialGap + (currentStackLevel * stackHeight);
-      const textTopY = yBase - offset;
+      const textTopY = centerY - offset;
 
       const pG = projectGroup.append("g");
-      pG.append("circle").attr("cx", x).attr("cy", yBase).attr("r", 5 / scale).attr("fill", "cyan");
-      pG.append("line").attr("x1", x).attr("y1", yBase).attr("x2", x).attr("y2", textTopY).attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", 0.6);
-      pG.append("text").attr("x", x).attr("y", textTopY).attr("dx", -textPadding).attr("dominant-baseline", "hanging").attr("text-anchor", "end").attr("font-size", `${dynamicFontSize}px`).text(`${p.name} (${p.year})`);
+      pG.append("circle").attr("cx", x).attr("cy", centerY).attr("r", 5 / scale).attr("fill", "cyan");
+      pG.append("line").attr("x1", x).attr("y1", centerY).attr("x2", x).attr("y2", textTopY).attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", 0.6);
+      pG.append("text")
+        .attr("x", x).attr("y", textTopY)
+        .attr("dx", -textPadding)
+        .attr("dominant-baseline", "hanging")
+        .attr("text-anchor", "end")
+        .attr("font-size", `${dynamicFontSize}px`)
+        .text(`${p.name} (${p.year})`);
     });
   }
 
-  // --- Zoom/Pan Behavior ---
   const zoomBehavior = d3.zoom()
-    .filter((event) => {
-      return event.button === 0 || event.button === 1 || event.type === 'touchstart' || event.type === 'wheel';
-    })
+    .filter(e => e.button === 0 || e.button === 1 || e.type === 'touchstart' || e.type === 'wheel')
     .scaleExtent([0.05, 20])
-    .on("zoom", (event) => {
-      group.attr("transform", event.transform);
-      updateLabels(event.transform.k);
+    .on("zoom", (e) => {
+      group.attr("transform", e.transform);
+      updateLabels(e.transform.k);
     });
 
   svg.call(zoomBehavior);
 
-  // --- Initialization Fix for GitHub/Mobile ---
-function initializeView() {
-  // Try multiple ways to get the height
-  const viewWidth = window.innerWidth || document.documentElement.clientWidth;
-  const viewHeight = window.innerHeight || document.documentElement.clientHeight;
-
-  // Safeguard: If the browser still says the height is 0, wait and try again
-  if (viewHeight === 0) {
-    setTimeout(initializeView, 100);
-    return;
-  }
-
-  const focusYear = 1950;
-  const centerX = (viewWidth / 2) - (focusYear * pixelsPerYear);
-  
-  // Apply the transform
-  const transform = d3.zoomIdentity
-    .translate(centerX, 0)
-    .scale(1);
-
-  svg.call(zoomBehavior.transform, transform);
-  
-  // Initial draw
-  updateLabels(1);
-}
-
-// Trigger as soon as the DOM is ready, but also when fully loaded
-document.addEventListener('DOMContentLoaded', initializeView);
-window.addEventListener('load', initializeView);
+  function initializeView() {
+    const viewWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewWidth === 0) { setTimeout(initializeView, 100); return; }
     
-    // Center the year 1950 horizontally
-    const centerX = (bb.width / 2) - (focusYear * pixelsPerYear);
-    
-    const transform = d3.zoomIdentity
-      .translate(centerX, 0)
-      .scale(1);
-
+    const centerX = (viewWidth / 2) - (1950 * pixelsPerYear);
+    const transform = d3.zoomIdentity.translate(centerX, 0).scale(1);
     svg.call(zoomBehavior.transform, transform);
     updateLabels(1);
   }
 
-  window.addEventListener('load', () => {
-    setTimeout(initializeView, 100);
-  });
-
-  window.addEventListener('resize', () => {
-    updateLabels(d3.zoomTransform(svg.node()).k);
-  });
+  window.addEventListener('load', initializeView);
+  window.addEventListener('resize', () => updateLabels(d3.zoomTransform(svg.node()).k));
 
   d3.select("#reset-btn").on("click", () => {
-    const bb = svg.node().getBoundingClientRect();
-    const centerX = (bb.width / 2) - (1950 * pixelsPerYear);
-    svg.transition().duration(750).call(
-      zoomBehavior.transform,
-      d3.zoomIdentity.translate(centerX, 0).scale(1)
-    );
+    const centerX = (window.innerWidth / 2) - (1950 * pixelsPerYear);
+    svg.transition().duration(750).call(zoomBehavior.transform, d3.zoomIdentity.translate(centerX, 0).scale(1));
   });
 
   // --- Image Support ---
   function addImageToBoard(url) {
     const img = new Image();
     img.onload = function () {
-      const currentScale = d3.zoomTransform(svg.node()).k;
       const transform = d3.zoomTransform(svg.node());
-      
-      // Place image in the middle of current view
       const xPos = (window.innerWidth / 2 - transform.x) / transform.k;
       const yPos = (window.innerHeight / 2 - transform.y) / transform.k;
+      const currentScale = transform.k;
 
       group.append("image")
         .attr("href", url)
@@ -247,17 +201,14 @@ window.addEventListener('load', initializeView);
         .attr("y", yPos - (img.height / 4) / currentScale)
         .attr("width", (img.width / 2) / currentScale)
         .attr("height", (img.height / 2) / currentScale)
-        .call(d3.drag()
-          .on("start", function(e) { 
-            d3.select(this).raise(); 
-            const el = d3.select(this);
-            el.attr("data-dx", e.x - +el.attr("x")).attr("data-dy", e.y - +el.attr("y"));
-          })
-          .on("drag", function(e) {
-            const el = d3.select(this);
-            el.attr("x", e.x - +el.attr("data-dx")).attr("y", e.y - +el.attr("data-dy"));
-          })
-        );
+        .call(d3.drag().on("start", function(e) { 
+          d3.select(this).raise(); 
+          const el = d3.select(this);
+          el.attr("data-dx", e.x - +el.attr("x")).attr("data-dy", e.y - +el.attr("y"));
+        }).on("drag", function(e) {
+          const el = d3.select(this);
+          el.attr("x", e.x - +el.attr("data-dx")).attr("y", e.y - +el.attr("data-dy"));
+        }));
     };
     img.src = url;
   }
@@ -267,14 +218,11 @@ window.addEventListener('load', initializeView);
     const items = e.clipboardData.items;
     for (const item of items) {
       if (item.type.startsWith("image/")) {
-        const file = item.getAsFile();
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(item.getAsFile());
         addImageToBoard(url);
       }
     }
   });
-
 </script>
 </body>
 </html>
-
