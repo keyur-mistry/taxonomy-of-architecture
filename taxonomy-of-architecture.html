@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Architecture Timeline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      overflow: hidden;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      /* 2. PREVENTS BROWSER INTERFERENCE */
+      touch-action: none; 
+    }
+    text {
+      fill: white;
+      user-select: none;
+    }
+    line {
+      shape-rendering: crispEdges;
+    }
+    #reset-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 15px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid white;
+      border-radius: 5px;
+      cursor: pointer;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+<button id="reset-btn">Reset View</button>
+<svg id="canvas" width="100%" height="100%"></svg>
+
+<script>
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const svg = d3.select("#canvas");
+  const group = svg.append("g");
+
+  const startYear = 0;
+  const endYear = 2026;
+  const pixelsPerYear = 10; 
+  
+  const projects = [
+    { year: 1929, name: "Barcelona Pavilion" },
+    { year: 1931, name: "Villa Savoye" },
+    { year: 1935, name: "Fallingwater" },
+    { year: 1945, name: "860–880 Lake Shore Drive" },
+    { year: 1951, name: "Farnsworth House" },
+    { year: 1952, name: "Unité d'Habitation" },
+    { year: 1958, name: "Seagram Building" },
+    { year: 1997, name: "Guggenheim Bilbao" },
+    { year: 2004, name: "CCTV Headquarters" }
+  ];
+  projects.sort((a, b) => a.year - b.year);
+
+  const timelineLayer = group.append("g");
+  const projectGroup = group.append("g");
+
+  function updateLabels(scale) {
+    timelineLayer.selectAll("*").remove();
+    projectGroup.selectAll("*").remove();
+
+    const dynamicStrokeWidth = 1 / scale;
+    const mainLineThickness = 2 / scale;
+    const dynamicFontSize = Math.max(12 / scale, 4); // Keep text readable
+    const textPadding = 8 / scale;
+
+    timelineLayer.append("line")
+      .attr("x1", startYear * pixelsPerYear)
+      .attr("y1", height / 2)
+      .attr("x2", endYear * pixelsPerYear)
+      .attr("y2", height / 2)
+      .attr("stroke", "white")
+      .attr("stroke-width", mainLineThickness);
+
+    let yearStep = scale < 0.1 ? 500 : (scale < 0.8 ? 100 : 10);
+
+    for (let year = 0; year <= endYear; year += yearStep) {
+      const x = year * pixelsPerYear;
+      const isMajor = year % 500 === 0;
+      const isCentury = year % 100 === 0;
+      
+      let tickH = (isMajor ? 20 : (isCentury ? 12 : 6)) / scale;
+      let opacity = isMajor ? 1 : (isCentury ? 0.8 : 0.4);
+
+      timelineLayer.append("line")
+        .attr("x1", x)
+        .attr("y1", height / 2 - tickH)
+        .attr("x2", x)
+        .attr("y2", height / 2 + tickH)
+        .attr("stroke", "white")
+        .attr("stroke-width", isMajor ? mainLineThickness : dynamicStrokeWidth)
+        .attr("opacity", opacity);
+
+      let showText = (yearStep === 500 && isMajor) || (yearStep === 100 && isCentury) || (yearStep === 10 && (isCentury || year % 50 === 0));
+
+      if (showText) {
+        timelineLayer.append("text")
+          .attr("x", x + (4 / scale))
+          .attr("y", height / 2 + tickH + (10 / scale))
+          .attr("font-size", `${dynamicFontSize * (isMajor ? 1.2 : 0.9)}px`)
+          .attr("font-weight", isMajor ? "bold" : "normal")
+          .attr("opacity", opacity)
+          .text(year);
+      }
+    }
+
+    let lastX = -Infinity;
+    let currentStackLevel = 0;
+    const minDistance = 180 / scale; 
+    const stackHeight = 30 / scale;
+
+    projects.forEach(p => {
+      const x = p.year * pixelsPerYear;
+      const yBase = height / 2;
+      if (x - lastX < minDistance) currentStackLevel++; else currentStackLevel = 0;
+      lastX = x;
+
+      const initialGap = 40 / scale; 
+      const offset = initialGap + (currentStackLevel * stackHeight);
+      const textTopY = yBase - offset;
+
+      const pG = projectGroup.append("g");
+      pG.append("circle").attr("cx", x).attr("cy", yBase).attr("r", 5 / scale).attr("fill", "cyan");
+      pG.append("line").attr("x1", x).attr("y1", yBase).attr("x2", x).attr("y2", textTopY).attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", 0.6);
+      pG.append("text").attr("x", x).attr("y", textTopY).attr("dx", -textPadding).attr("dominant-baseline", "hanging").attr("text-anchor", "end").attr("font-size", `${dynamicFontSize}px`).text(`${p.name} (${p.year})`);
+    });
+  }
+
+const zoomBehavior = d3.zoom()
+  .filter((event) => {
+    // 0: Left click
+    // 1: Middle click (Scroll wheel)
+    // touchstart: Mobile touch
+    // wheel: Mouse scroll
+    return event.button === 0 || 
+           event.button === 1 || 
+           event.type === 'touchstart' || 
+           event.type === 'wheel';
+  })
+  .scaleExtent([0.05, 20])
+  .on("zoom", (event) => {
+    group.attr("transform", event.transform);
+    updateLabels(event.transform.k);
+  });
+
+svg.call(zoomBehavior);
+
+  // RESET BUTTON LOGIC
+  d3.select("#reset-btn").on("click", () => {
+    svg.transition().duration(750).call(
+      zoomBehavior.transform,
+      d3.zoomIdentity.translate(0, 0).scale(1)
+    );
+  });
+
+</script>
+</body>
+</html>
