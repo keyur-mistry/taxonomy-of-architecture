@@ -139,7 +139,7 @@
     });
   }
 
-onst zoomBehavior = d3.zoom()
+const zoomBehavior = d3.zoom()
   .filter((event) => {
     return event.button === 0 || 
            event.button === 1 || 
@@ -191,3 +191,4 @@ window.addEventListener('resize', () => {
 </body>
 
 </html>
+
