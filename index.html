@@ -7,48 +7,40 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: black;
-      overflow: hidden;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #000; overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
       touch-action: none; 
     }
-    #canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
+    #canvas { display: block; width: 100vw; height: 100vh; position: absolute; }
+    #controls {
+      position: fixed; top: 20px; left: 20px;
+      background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(10px);
+      padding: 15px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white; z-index: 1000; display: flex; flex-direction: column; gap: 8px;
     }
-    text {
-      fill: white;
-      user-select: none;
-      pointer-events: none;
-    }
-    line {
-      shape-rendering: crispEdges;
-    }
+    #controls label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
     #reset-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 100;
-      backdrop-filter: blur(5px);
-      font-size: 14px;
+      position: fixed; bottom: 20px; right: 20px;
+      padding: 10px 20px; background: rgba(255, 255, 255, 0.1);
+      color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 100;
     }
+    text { fill: white; user-select: none; pointer-events: none; }
+    line { shape-rendering: crispEdges; }
   </style>
 </head>
 <body>
+
+<div id="controls">
+  <div style="font-size: 11px; opacity: 0.5; letter-spacing: 1px;">ARCHITECTS</div>
+  <label><input type="checkbox" class="arch-filter" value="Zaha Hadid" checked> Zaha Hadid</label>
+  <label><input type="checkbox" class="arch-filter" value="Le Corbusier" checked> Le Corbusier</label>
+  <label><input type="checkbox" class="arch-filter" value="Mies van der Rohe" checked> Mies van der Rohe</label>
+  <label><input type="checkbox" class="arch-filter" value="Louis Kahn" checked> Louis Kahn</label>
+  <label><input type="checkbox" class="arch-filter" value="Frank Lloyd Wright" checked> Frank Lloyd Wright</label>
+  <label><input type="checkbox" class="arch-filter" value="Frank Gehry" checked> Frank Gehry</label>
+  
+</div>
 
 <button id="reset-btn">Reset View</button>
 <svg id="canvas"></svg>
@@ -57,110 +49,156 @@
   const svg = d3.select("#canvas");
   const group = svg.append("g");
 
+  const pixelsPerYear = 12; 
   const startYear = 0;
   const endYear = 2026;
-  const pixelsPerYear = 10; 
   
   const projects = [
-    { year: 1929, name: "Barcelona Pavilion" },
-    { year: 1931, name: "Villa Savoye" },
-    { year: 1935, name: "Fallingwater" },
-    { year: 1945, name: "860–880 Lake Shore Drive" },
-    { year: 1951, name: "Farnsworth House" },
-    { year: 1952, name: "Unité d'Habitation" },
-    { year: 1958, name: "Seagram Building" },
-    { year: 1997, name: "Guggenheim Bilbao" },
-    { year: 2004, name: "CCTV Headquarters" }
+// --- LE CORBUSIER ---
+  { year: 1931, name: "Villa Savoye", architect: "Le Corbusier" },
+  { year: 1951, name: "Cabanon de vacances", architect: "Le Corbusier" },
+  { year: 1952, name: "Unité d'Habitation", architect: "Le Corbusier" },
+  { year: 1954, name: "Chapelle Notre-Dame-du-Haut", architect: "Le Corbusier" },
+  { year: 1955, name: "Palace of Assembly", architect: "Le Corbusier" },
+  { year: 1955, name: "High Court of Chandigarh", architect: "Le Corbusier" },
+  { year: 1959, name: "National Museum of Western Art", architect: "Le Corbusier" },
+  { year: 1960, name: "Sainte Marie de La Tourette", architect: "Le Corbusier" },
+  { year: 1963, name: "Carpenter Center", architect: "Le Corbusier" },
+  { year: 1967, name: "Pavillon Le Corbusier", architect: "Le Corbusier" },
+
+  // --- LOUIS KAHN ---
+  { year: 1953, name: "Yale University Art Gallery", architect: "Louis Kahn" },
+  { year: 1962, name: "First Unitarian Church", architect: "Louis Kahn" },
+  { year: 1965, name: "Salk Institute", architect: "Louis Kahn" },
+  { year: 1965, name: "Richards Medical Research Labs", architect: "Louis Kahn" },
+  { year: 1967, name: "Fisher House", architect: "Louis Kahn" },
+  { year: 1971, name: "Phillips Exeter Library", architect: "Louis Kahn" },
+  { year: 1972, name: "Kimbell Art Museum", architect: "Louis Kahn" },
+  { year: 1974, name: "Jodhpur Institute of Management", architect: "Louis Kahn" },
+  { year: 1982, name: "National Assembly (Dhaka)", architect: "Louis Kahn" },
+  { year: 2012, name: "Four Freedoms Park", architect: "Louis Kahn" },
+
+  // --- FRANK LLOYD WRIGHT ---
+  { year: 1908, name: "Unity Temple", architect: "Frank Lloyd Wright" },
+  { year: 1910, name: "Robie House", architect: "Frank Lloyd Wright" },
+  { year: 1921, name: "Hollyhock House", architect: "Frank Lloyd Wright" },
+  { year: 1923, name: "Imperial Hotel", architect: "Frank Lloyd Wright" },
+  { year: 1924, name: "Ennis House", architect: "Frank Lloyd Wright" },
+  { year: 1935, name: "Fallingwater", architect: "Frank Lloyd Wright" },
+  { year: 1937, name: "Taliesin West", architect: "Frank Lloyd Wright" },
+  { year: 1939, name: "Johnson Wax HQ", architect: "Frank Lloyd Wright" },
+  { year: 1959, name: "Solomon R. Guggenheim", architect: "Frank Lloyd Wright" },
+  { year: 1962, name: "Marin County Civic Center", architect: "Frank Lloyd Wright" },
+
+  // --- FRANK GEHRY ---
+  { year: 1978, name: "Gehry Residence", architect: "Frank Gehry" },
+  { year: 1989, name: "Vitra Design Museum", architect: "Frank Gehry" },
+  { year: 1996, name: "Dancing House", architect: "Frank Gehry" },
+  { year: 1997, name: "Guggenheim Bilbao", architect: "Frank Gehry" },
+  { year: 2000, name: "Museum of Pop Culture", architect: "Frank Gehry" },
+  { year: 2003, name: "Walt Disney Concert Hall", architect: "Frank Gehry" },
+  { year: 2004, name: "Stata Center (MIT)", architect: "Frank Gehry" },
+  { year: 2011, name: "8 Spruce Street", architect: "Frank Gehry" },
+  { year: 2014, name: "Fondation Louis Vuitton", architect: "Frank Gehry" },
+  { year: 2021, name: "Luma Arles", architect: "Frank Gehry" },
+
+  // --- ZAHA HADID ---
+  { year: 1993, name: "Vitra Fire Station", architect: "Zaha Hadid" },
+  { year: 2003, name: "Rosenthal Center", architect: "Zaha Hadid" },
+  { year: 2005, name: "Phaeno Science Center", architect: "Zaha Hadid" },
+  { year: 2010, name: "MAXXI Museum", architect: "Zaha Hadid" },
+  { year: 2010, name: "Guangzhou Opera House", architect: "Zaha Hadid" },
+  { year: 2011, name: "London Aquatics Centre", architect: "Zaha Hadid" },
+  { year: 2012, name: "Heydar Aliyev Center", architect: "Zaha Hadid" },
+  { year: 2013, name: "Dongdaemun Design Plaza", architect: "Zaha Hadid" },
+  { year: 2014, name: "Innovation Tower", architect: "Zaha Hadid" },
+  { year: 2016, name: "Antwerp Port House", architect: "Zaha Hadid" },
+
+  // --- ANTONI GAUDÍ ---
+  { year: 1883, name: "Casa Vicens", architect: "Antoni Gaudi" },
+  { year: 1883, name: "Sagrada Família (Start)", architect: "Antoni Gaudi" },
+  { year: 1885, name: "Palau Güell", architect: "Antoni Gaudi" },
+  { year: 1889, name: "College of the Teresians", architect: "Antoni Gaudi" },
+  { year: 1890, name: "Episcopal Palace of Astorga", architect: "Antoni Gaudi" },
+  { year: 1900, name: "Park Güell (Start)", architect: "Antoni Gaudi" },
+  { year: 1904, name: "Casa Batlló", architect: "Antoni Gaudi" },
+  { year: 1906, name: "Casa Milà (La Pedrera)", architect: "Antoni Gaudi" },
+  { year: 1908, name: "Church of Colònia Güell", architect: "Antoni Gaudi" },
+  { year: 1912, name: "Sagrada Família Schools", architect: "Antoni Gaudi" },
   ];
   projects.sort((a, b) => a.year - b.year);
 
   const timelineLayer = group.append("g");
   const projectGroup = group.append("g");
 
-function updateLabels(scale) {
+  function updateLabels(scale) {
     timelineLayer.selectAll("*").remove();
     projectGroup.selectAll("*").remove();
 
-    const viewWidth = window.innerWidth || document.documentElement.clientWidth;
-    const viewHeight = window.innerHeight || document.documentElement.clientHeight;
-    const centerY = viewHeight / 2;
+    const vH = window.innerHeight;
+    const centerY = vH / 2;
 
-    // 1. IMPROVED LEGIBILITY SCALING
-    // baseFontSize: how big the text "should" be at this scale
-    const baseFontSize = 14 / scale;
+    const activeArchs = Array.from(document.querySelectorAll('.arch-filter:checked')).map(cb => cb.value);
+    const filteredProjects = projects.filter(p => activeArchs.includes(p.architect));
 
-    // CLAMPING: 
-    // Max: 24/scale (prevents it from being huge when zoomed in)
-    // Min: 12/scale (ensures it's always readable when zoomed out)
-    const dynamicFontSize = Math.min(Math.max(baseFontSize, 12 / scale), 24 / scale);
-    
+    const dynamicFontSize = Math.min(Math.max(14 / scale, 12 / scale), 24 / scale);
     const dynamicStrokeWidth = 1 / scale;
     const mainLineThickness = 2 / scale;
-    const textPadding = 10 / scale;
 
-    // 2. MAIN LINE
+    // 1. MAIN TIMELINE
     timelineLayer.append("line")
-      .attr("x1", startYear * pixelsPerYear)
-      .attr("y1", centerY)
-      .attr("x2", endYear * pixelsPerYear)
-      .attr("y2", centerY)
-      .attr("stroke", "white")
-      .attr("stroke-width", mainLineThickness);
+      .attr("x1", 0).attr("y1", centerY).attr("x2", endYear * pixelsPerYear).attr("y2", centerY)
+      .attr("stroke", "white").attr("stroke-width", mainLineThickness);
 
-    // 3. TICKS
-    let yearStep = scale < 0.1 ? 500 : (scale < 0.8 ? 100 : 10);
+    // 2. YEAR TICKS
+    let yearStep = scale < 0.2 ? 500 : (scale < 0.8 ? 100 : 10);
     for (let year = 0; year <= endYear; year += yearStep) {
       const x = year * pixelsPerYear;
-      const isMajor = year % 500 === 0;
+      const is500 = year % 500 === 0;
       const isCentury = year % 100 === 0;
-      let tickH = (isMajor ? 20 : (isCentury ? 12 : 6)) / scale;
-      let opacity = isMajor ? 1 : (isCentury ? 0.7 : 0.3);
+      
+      let tickH = (is500 ? 25 : (isCentury ? 15 : 8)) / scale;
+      let opacity = is500 ? 1 : (isCentury ? 0.7 : 0.3);
 
       timelineLayer.append("line")
         .attr("x1", x).attr("y1", centerY - tickH).attr("x2", x).attr("y2", centerY + tickH)
-        .attr("stroke", "white").attr("stroke-width", isMajor ? mainLineThickness : dynamicStrokeWidth).attr("opacity", opacity);
+        .attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", opacity);
 
-      let showText = (yearStep === 500 && isMajor) || (yearStep === 100 && isCentury) || (yearStep === 10 && (isCentury || year % 50 === 0));
-      if (showText) {
+      // Labeling: 500s are ALWAYS shown
+      if (is500 || (yearStep === 100 && isCentury) || (yearStep === 10 && (year % 50 === 0))) {
         timelineLayer.append("text")
-          .attr("x", x + (4 / scale)).attr("y", centerY + tickH + (10 / scale))
-          .attr("font-size", `${dynamicFontSize * (isMajor ? 1.2 : 0.9)}px`)
-          .attr("font-weight", isMajor ? "bold" : "normal").attr("opacity", opacity).text(year);
+          .attr("x", x + (5 / scale)).attr("y", centerY + tickH + (12 / scale))
+          .attr("font-size", `${dynamicFontSize * (is500 ? 1.4 : 1)}px`)
+          .attr("font-weight", is500 ? "bold" : "normal").text(year);
       }
     }
 
-    // 4. PROJECTS WITH PROTECTIVE BUFFER
+    // 3. PROJECTS
     let lastX = -Infinity;
     let currentStackLevel = 0;
-    const minDistance = 180 / scale; 
-    const stackHeight = 35 / scale;
+    const minDist = 200 / scale;
+    const detailThreshold = 0.3; // When to show text/lines
 
-    projects.forEach(p => {
+    filteredProjects.forEach(p => {
       const x = p.year * pixelsPerYear;
-      if (x - lastX < minDistance) currentStackLevel++; else currentStackLevel = 0;
+      if (x - lastX < minDist) currentStackLevel++; else currentStackLevel = 0;
       lastX = x;
 
-      // This ensures the line always stays long enough to keep text away from the main axis
-      const initialGap = 45 / scale; 
-      const offset = initialGap + (currentStackLevel * stackHeight);
-      const textTopY = centerY - offset;
-
       const pG = projectGroup.append("g");
-      pG.append("circle").attr("cx", x).attr("cy", centerY).attr("r", 5 / scale).attr("fill", "cyan");
-      pG.append("line").attr("x1", x).attr("y1", centerY).attr("x2", x).attr("y2", textTopY).attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", 0.6);
-      pG.append("text")
-        .attr("x", x).attr("y", textTopY)
-        .attr("dx", -textPadding)
-        .attr("dominant-baseline", "hanging")
-        .attr("text-anchor", "end")
-        .attr("font-size", `${dynamicFontSize}px`)
-        .text(`${p.name} (${p.year})`);
+      pG.append("circle").attr("cx", x).attr("cy", centerY).attr("r", 5 / scale).attr("fill", p.architect === "Zaha Hadid" ? "cyan" : "white");
+
+      if (scale > detailThreshold) {
+        const offset = (50 / scale) + (currentStackLevel * (35 / scale));
+        const textY = centerY - offset;
+        pG.append("line").attr("x1", x).attr("y1", centerY).attr("x2", x).attr("y2", textY).attr("stroke", "white").attr("stroke-width", dynamicStrokeWidth).attr("opacity", 0.4);
+        pG.append("text").attr("x", x).attr("y", textY).attr("dx", -10/scale).attr("dominant-baseline", "hanging").attr("text-anchor", "end").attr("font-size", `${dynamicFontSize}px`).text(`${p.name} (${p.year})`);
+      }
     });
   }
 
   const zoomBehavior = d3.zoom()
     .filter(e => e.button === 0 || e.button === 1 || e.type === 'touchstart' || e.type === 'wheel')
-    .scaleExtent([0.05, 20])
+    .scaleExtent([0.02, 40])
     .on("zoom", (e) => {
       group.attr("transform", e.transform);
       updateLabels(e.transform.k);
@@ -168,61 +206,30 @@ function updateLabels(scale) {
 
   svg.call(zoomBehavior);
 
-  function initializeView() {
-    const viewWidth = window.innerWidth || document.documentElement.clientWidth;
-    if (viewWidth === 0) { setTimeout(initializeView, 100); return; }
-    
-    const centerX = (viewWidth / 2) - (1950 * pixelsPerYear);
-    const transform = d3.zoomIdentity.translate(centerX, 0).scale(1);
-    svg.call(zoomBehavior.transform, transform);
-    updateLabels(1);
-  }
-
-  window.addEventListener('load', initializeView);
-  window.addEventListener('resize', () => updateLabels(d3.zoomTransform(svg.node()).k));
-
-  d3.select("#reset-btn").on("click", () => {
-    const centerX = (window.innerWidth / 2) - (1950 * pixelsPerYear);
-    svg.transition().duration(750).call(zoomBehavior.transform, d3.zoomIdentity.translate(centerX, 0).scale(1));
-  });
-
-  // --- Image Support ---
-  function addImageToBoard(url) {
-    const img = new Image();
-    img.onload = function () {
-      const transform = d3.zoomTransform(svg.node());
-      const xPos = (window.innerWidth / 2 - transform.x) / transform.k;
-      const yPos = (window.innerHeight / 2 - transform.y) / transform.k;
-      const currentScale = transform.k;
-
-      group.append("image")
-        .attr("href", url)
-        .attr("x", xPos - (img.width / 4) / currentScale)
-        .attr("y", yPos - (img.height / 4) / currentScale)
-        .attr("width", (img.width / 2) / currentScale)
-        .attr("height", (img.height / 2) / currentScale)
-        .call(d3.drag().on("start", function(e) { 
-          d3.select(this).raise(); 
-          const el = d3.select(this);
-          el.attr("data-dx", e.x - +el.attr("x")).attr("data-dy", e.y - +el.attr("y"));
-        }).on("drag", function(e) {
-          const el = d3.select(this);
-          el.attr("x", e.x - +el.attr("data-dx")).attr("y", e.y - +el.attr("data-dy"));
-        }));
-    };
-    img.src = url;
-  }
-
-  document.addEventListener("paste", (e) => {
-    if (!e.clipboardData) return;
-    const items = e.clipboardData.items;
-    for (const item of items) {
-      if (item.type.startsWith("image/")) {
-        const url = URL.createObjectURL(item.getAsFile());
-        addImageToBoard(url);
-      }
+  function fitAll() {
+      const vW = window.innerWidth;
+      const vH = window.innerHeight;
+      const totalW = endYear * pixelsPerYear;
+      
+      // 1. Calculate the scale to fit the width
+      const scale = (vW / totalW) * 0.9; 
+      
+      // 2. Center X: (Middle of screen) minus (Middle of timeline * scale)
+      const tx = (vW / 2) - ((totalW / 2) * scale);
+      
+      // 3. Center Y: (Middle of screen). 
+      // Since we draw our line at Y=0, translating the group to vH/2 
+      // puts the line exactly in the vertical center.
+      const ty = vH / 2; 
+      
+      svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
     }
-  });
+
+    window.addEventListener('load', () => setTimeout(fitAll, 100));
+    window.addEventListener('resize', fitAll);
+    d3.selectAll(".arch-filter").on("change", () => updateLabels(d3.zoomTransform(svg.node()).k));
+    d3.select("#reset-btn").on("click", fitAll);
+
 </script>
 </body>
 </html>
