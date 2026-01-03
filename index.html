@@ -16,6 +16,9 @@
       /* 2. PREVENTS BROWSER INTERFERENCE */
       touch-action: none; 
     }
+    svg {
+      display: block;   /* removes extra margin/padding */
+    }    
     text {
       fill: white;
       user-select: none;
@@ -156,15 +159,13 @@ svg.call(zoomBehavior);
 
 // --- INITIALIZATION FIX ---
 function initializeView() {
-  // 1. Calculate how to center the year 1950
-  const initialYear = 1950;
-  const initialX = -(initialYear * pixelsPerYear) + (window.innerWidth / 2);
-  const initialY = 0; // The line is already centered vertically by (height / 2)
+    const initialYear = 1950;
+    const initialX = -(initialYear * pixelsPerYear) + (window.innerWidth / 2);
+    const initialY = 0;
 
-  // 2. Apply this "starting camera position" to D3
-  const transform = d3.zoomIdentity
-    .translate(initialX, initialY)
-    .scale(1);
+    const transform = d3.zoomIdentity
+      .translate(initialX, initialY)
+      .scale(1);
 
   // 3. Force the SVG to move to that position and draw
   svg.call(zoomBehavior.transform, transform);
@@ -191,4 +192,5 @@ window.addEventListener('resize', () => {
 </body>
 
 </html>
+
 
