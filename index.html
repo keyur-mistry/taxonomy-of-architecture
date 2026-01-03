@@ -173,9 +173,34 @@
   svg.call(zoomBehavior);
 
   // --- Initialization Fix for GitHub/Mobile ---
-  function initializeView() {
-    const bb = svg.node().getBoundingClientRect();
-    const focusYear = 1950;
+function initializeView() {
+  // Try multiple ways to get the height
+  const viewWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  // Safeguard: If the browser still says the height is 0, wait and try again
+  if (viewHeight === 0) {
+    setTimeout(initializeView, 100);
+    return;
+  }
+
+  const focusYear = 1950;
+  const centerX = (viewWidth / 2) - (focusYear * pixelsPerYear);
+  
+  // Apply the transform
+  const transform = d3.zoomIdentity
+    .translate(centerX, 0)
+    .scale(1);
+
+  svg.call(zoomBehavior.transform, transform);
+  
+  // Initial draw
+  updateLabels(1);
+}
+
+// Trigger as soon as the DOM is ready, but also when fully loaded
+document.addEventListener('DOMContentLoaded', initializeView);
+window.addEventListener('load', initializeView);
     
     // Center the year 1950 horizontally
     const centerX = (bb.width / 2) - (focusYear * pixelsPerYear);
@@ -252,3 +277,4 @@
 </script>
 </body>
 </html>
+
